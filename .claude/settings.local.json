@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc -l c:/PROYECTOS/documind-ai/backend/app/api/v1/*.py)",
+      "Bash(wc -l c:/PROYECTOS/documind-ai/backend/app/services/**/*.py)"
+    ]
+  }
+}

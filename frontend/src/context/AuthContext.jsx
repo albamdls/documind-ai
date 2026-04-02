@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react'
+import { useLanguage } from './LanguageContext'
 
 const AuthContext = createContext(null)
 
@@ -19,6 +20,7 @@ function buildInitials(name) {
 }
 
 export function AuthProvider({ children }) {
+  const { t } = useLanguage()
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(false)
   const [sessionLoaded, setSessionLoaded] = useState(false)
@@ -54,7 +56,7 @@ export function AuthProvider({ children }) {
 
     if (users.find(u => u.email.toLowerCase() === email.toLowerCase())) {
       setLoading(false)
-      return { success: false, error: 'An account with this email already exists.' }
+      return { success: false, error: t('auth.errors.accountExists') }
     }
 
     const newUser = {
@@ -66,6 +68,7 @@ export function AuthProvider({ children }) {
       plan: 'Free',
       joinedAt: new Date().toISOString(),
       aiProvider: 'anthropic',
+      aiModel: 'claude-3-5-sonnet',
     }
 
     saveUsers([...users, newUser])
@@ -87,7 +90,7 @@ export function AuthProvider({ children }) {
 
     if (!found) {
       setLoading(false)
-      return { success: false, error: 'Incorrect email or password. Please try again.' }
+      return { success: false, error: t('auth.errors.invalidCredentials') }
     }
 
     const { password: _, ...safeUser } = found
@@ -109,6 +112,7 @@ export function AuthProvider({ children }) {
       plan: 'Pro',
       joinedAt: '2024-01-15T00:00:00Z',
       aiProvider: 'anthropic',
+      aiModel: 'claude-3-5-sonnet',
     }
     setUser(demoUser)
     setLoading(false)

@@ -3,16 +3,10 @@ import { useNavigate, Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Mail, Lock, Eye, EyeOff, ArrowRight, Sparkles, User, AlertCircle, Check } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import LanguageSwitcher from '../components/common/LanguageSwitcher'
+import { useLanguage } from '../context/LanguageContext'
 import { useTheme } from '../context/ThemeContext'
 import { Divider } from '../components/ui/index'
-
-const STRENGTH_CONFIG = [
-  { label: 'Too short',  color: '#ef4444' },
-  { label: 'Weak',       color: '#ef4444' },
-  { label: 'Fair',       color: '#f59e0b' },
-  { label: 'Good',       color: '#3b82f6' },
-  { label: 'Strong',     color: '#10b981' },
-]
 
 function getStrength(pw) {
   if (!pw || pw.length < 6) return 0
@@ -24,17 +18,11 @@ function getStrength(pw) {
   return Math.min(s, 4)
 }
 
-const REQUIREMENTS = [
-  { test: pw => pw.length >= 8,          label: 'At least 8 characters' },
-  { test: pw => /[A-Z]/.test(pw),        label: 'One uppercase letter' },
-  { test: pw => /[0-9]/.test(pw),        label: 'One number' },
-  { test: pw => /[^A-Za-z0-9]/.test(pw), label: 'One special character' },
-]
-
 export default function RegisterPage() {
   const navigate = useNavigate()
   const { register, loading } = useAuth()
   const { theme, toggleTheme } = useTheme()
+  const { t } = useLanguage()
   const isDark = theme === 'dark'
 
   const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '' })
@@ -46,18 +34,28 @@ export default function RegisterPage() {
   const [showReqs, setShowReqs] = useState(false)
 
   const strength = getStrength(form.password)
-  const sc = STRENGTH_CONFIG[strength]
+  const strengthConfig = t('auth.register.strength').map((label, index) => ({
+    label,
+    color: ['#ef4444', '#ef4444', '#f59e0b', '#3b82f6', '#10b981'][index],
+  }))
+  const sc = strengthConfig[strength]
+  const requirements = [
+    { test: pw => pw.length >= 8, label: t('auth.register.requirements')[0] },
+    { test: pw => /[A-Z]/.test(pw), label: t('auth.register.requirements')[1] },
+    { test: pw => /[0-9]/.test(pw), label: t('auth.register.requirements')[2] },
+    { test: pw => /[^A-Za-z0-9]/.test(pw), label: t('auth.register.requirements')[3] },
+  ]
 
   const validate = (f = form) => {
     const e = {}
-    if (!f.name.trim())                           e.name = 'Full name is required'
-    else if (f.name.trim().length < 2)            e.name = 'Name must be at least 2 characters'
-    if (!f.email.trim())                          e.email = 'Email is required'
-    else if (!/\S+@\S+\.\S+/.test(f.email))       e.email = 'Enter a valid email address'
-    if (!f.password)                              e.password = 'Password is required'
-    else if (f.password.length < 8)              e.password = 'Minimum 8 characters'
-    if (!f.confirm)                               e.confirm = 'Please confirm your password'
-    else if (f.confirm !== f.password)            e.confirm = 'Passwords do not match'
+    if (!f.name.trim()) e.name = t('auth.register.errors.nameRequired')
+    else if (f.name.trim().length < 2) e.name = t('auth.register.errors.nameShort')
+    if (!f.email.trim()) e.email = t('auth.register.errors.emailRequired')
+    else if (!/\S+@\S+\.\S+/.test(f.email)) e.email = t('auth.register.errors.emailInvalid')
+    if (!f.password) e.password = t('auth.register.errors.passwordRequired')
+    else if (f.password.length < 8) e.password = t('auth.register.errors.passwordShort')
+    if (!f.confirm) e.confirm = t('auth.register.errors.confirmRequired')
+    else if (f.confirm !== f.password) e.confirm = t('auth.register.errors.passwordMismatch')
     return e
   }
 
@@ -103,13 +101,17 @@ export default function RegisterPage() {
       </div>
 
       {/* Theme toggle */}
-      <button
-        onClick={toggleTheme}
-        className="absolute top-5 right-5 w-8 h-8 rounded-lg flex items-center justify-center transition-all text-sm"
-        style={{ background: 'var(--bg-hover)', border: '1px solid var(--border-default)', color: 'var(--txt-secondary)' }}
-      >
-        {isDark ? '☀️' : '🌙'}
-      </button>
+      <div className="absolute top-5 right-5 flex items-center gap-2">
+        <LanguageSwitcher />
+        <button
+          onClick={toggleTheme}
+          className="w-8 h-8 rounded-lg flex items-center justify-center transition-all text-sm"
+          style={{ background: 'var(--bg-hover)', border: '1px solid var(--border-default)', color: 'var(--txt-secondary)' }}
+          title={theme === 'dark' ? t('theme.light') : t('theme.dark')}
+        >
+          {isDark ? '☀️' : '🌙'}
+        </button>
+      </div>
 
       <motion.div
         initial={{ opacity: 0, y: 16 }}
@@ -131,10 +133,10 @@ export default function RegisterPage() {
         {/* Card */}
         <div className="card-glass rounded-2xl p-8">
           <h1 className="font-display font-bold text-2xl mb-1 tracking-tight text-center" style={{ color: 'var(--txt-primary)' }}>
-            Create your account
+            {t('auth.register.title')}
           </h1>
           <p className="text-sm text-center mb-7" style={{ color: 'var(--txt-secondary)' }}>
-            Start for free — no credit card required
+            {t('auth.register.subtitle')}
           </p>
 
           {/* Google */}
@@ -150,10 +152,10 @@ export default function RegisterPage() {
               <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
               <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
             </svg>
-            Sign up with Google
+            {t('auth.register.google')}
           </button>
 
-          <Divider label="or continue with email" />
+          <Divider label={t('auth.register.divider')} />
 
           {/* Server error */}
           <AnimatePresence>
@@ -172,9 +174,9 @@ export default function RegisterPage() {
           <form onSubmit={handleSubmit} noValidate className="space-y-4">
             {/* Name */}
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--txt-muted)' }}>
-                Full name
-              </label>
+                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--txt-muted)' }}>
+                  {t('auth.register.fullName')}
+                </label>
               <div className="relative">
                 <User size={13} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--txt-muted)' }} />
                 <input
@@ -182,7 +184,7 @@ export default function RegisterPage() {
                   value={form.name}
                   onChange={e => handleChange('name', e.target.value)}
                   onBlur={() => handleBlur('name')}
-                  placeholder="Alex Rivera"
+                  placeholder={t('auth.register.fullNamePlaceholder')}
                   autoComplete="name"
                   className={`input-base pl-9 ${errors.name && touched.name ? 'input-error' : ''}`}
                 />
@@ -199,9 +201,9 @@ export default function RegisterPage() {
 
             {/* Email */}
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--txt-muted)' }}>
-                Email address
-              </label>
+                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--txt-muted)' }}>
+                  {t('auth.register.email')}
+                </label>
               <div className="relative">
                 <Mail size={13} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--txt-muted)' }} />
                 <input
@@ -209,7 +211,7 @@ export default function RegisterPage() {
                   value={form.email}
                   onChange={e => handleChange('email', e.target.value)}
                   onBlur={() => handleBlur('email')}
-                  placeholder="you@company.com"
+                  placeholder={t('auth.register.emailPlaceholder')}
                   autoComplete="email"
                   className={`input-base pl-9 ${errors.email && touched.email ? 'input-error' : ''}`}
                 />
@@ -226,9 +228,9 @@ export default function RegisterPage() {
 
             {/* Password */}
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--txt-muted)' }}>
-                Password
-              </label>
+                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--txt-muted)' }}>
+                  {t('auth.register.password')}
+                </label>
               <div className="relative">
                 <Lock size={13} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--txt-muted)' }} />
                 <input
@@ -237,7 +239,7 @@ export default function RegisterPage() {
                   onChange={e => handleChange('password', e.target.value)}
                   onBlur={() => handleBlur('password')}
                   onFocus={() => setShowReqs(true)}
-                  placeholder="Min. 8 characters"
+                  placeholder={t('auth.register.passwordPlaceholder')}
                   autoComplete="new-password"
                   className={`input-base pl-9 pr-10 ${errors.password && touched.password ? 'input-error' : ''}`}
                 />
@@ -271,7 +273,7 @@ export default function RegisterPage() {
                 {showReqs && form.password && (
                   <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
                     className="mt-2 space-y-1 overflow-hidden">
-                    {REQUIREMENTS.map((req, i) => {
+                    {requirements.map((req, i) => {
                       const ok = req.test(form.password)
                       return (
                         <div key={i} className="flex items-center gap-1.5">
@@ -301,9 +303,9 @@ export default function RegisterPage() {
 
             {/* Confirm password */}
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--txt-muted)' }}>
-                Confirm password
-              </label>
+                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--txt-muted)' }}>
+                  {t('auth.register.confirmPassword')}
+                </label>
               <div className="relative">
                 <Lock size={13} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--txt-muted)' }} />
                 <input
@@ -311,7 +313,7 @@ export default function RegisterPage() {
                   value={form.confirm}
                   onChange={e => handleChange('confirm', e.target.value)}
                   onBlur={() => handleBlur('confirm')}
-                  placeholder="Repeat your password"
+                  placeholder={t('auth.register.confirmPasswordPlaceholder')}
                   autoComplete="new-password"
                   className={`input-base pl-9 pr-10 ${errors.confirm && touched.confirm ? 'input-error' : ''} ${passwordsMatch ? 'input-success' : ''}`}
                 />
@@ -332,11 +334,11 @@ export default function RegisterPage() {
             </div>
 
             {/* Terms */}
-            <p className="text-xs leading-relaxed" style={{ color: 'var(--txt-muted)' }}>
-              By creating an account, you agree to our{' '}
-              <a href="#" className="hover:opacity-80 underline underline-offset-2" style={{ color: 'var(--txt-secondary)' }}>Terms of Service</a>{' '}
-              and{' '}
-              <a href="#" className="hover:opacity-80 underline underline-offset-2" style={{ color: 'var(--txt-secondary)' }}>Privacy Policy</a>.
+              <p className="text-xs leading-relaxed" style={{ color: 'var(--txt-muted)' }}>
+              {t('auth.register.termsPrefix')}{' '}
+              <a href="#" className="hover:opacity-80 underline underline-offset-2" style={{ color: 'var(--txt-secondary)' }}>{t('auth.register.terms')}</a>{' '}
+              {t('auth.register.and')}{' '}
+              <a href="#" className="hover:opacity-80 underline underline-offset-2" style={{ color: 'var(--txt-secondary)' }}>{t('auth.register.privacy')}</a>.
             </p>
 
             {/* Submit */}
@@ -349,17 +351,17 @@ export default function RegisterPage() {
               onMouseLeave={e => e.currentTarget.style.opacity = '1'}
             >
               {loading
-                ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Creating account...</>
-                : <>Create free account <ArrowRight size={14} /></>
+                ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> {t('auth.register.loading')}</>
+                : <>{t('auth.register.submit')} <ArrowRight size={14} /></>
               }
             </button>
           </form>
         </div>
 
         <p className="text-sm text-center mt-5" style={{ color: 'var(--txt-secondary)' }}>
-          Already have an account?{' '}
+          {t('auth.register.hasAccount')}{' '}
           <Link to="/login" className="font-semibold hover:opacity-80 transition-opacity" style={{ color: 'var(--accent)' }}>
-            Sign in →
+            {t('auth.register.signIn')}
           </Link>
         </p>
       </motion.div>

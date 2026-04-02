@@ -1,8 +1,9 @@
 import { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { CloudUpload, FileText, X, Check } from 'lucide-react'
+import { useLanguage } from '../../context/LanguageContext'
 
-function FileItem({ file, onRemove }) {
+function FileItem({ file, onRemove, t }) {
   const [progress, setProgress] = useState(0)
   const [done, setDone] = useState(false)
 
@@ -47,7 +48,7 @@ function FileItem({ file, onRemove }) {
               <span className="text-[11px] shrink-0" style={{ color: 'var(--txt-muted)' }}>{Math.round(Math.min(progress, 100))}%</span>
             </>
           ) : (
-            <span className="text-[11px]" style={{ color: 'var(--accent-green)' }}>Uploaded · Processing…</span>
+            <span className="text-[11px]" style={{ color: 'var(--accent-green)' }}>{t('fileUploader.uploaded')}</span>
           )}
         </div>
       </div>
@@ -64,6 +65,7 @@ function FileItem({ file, onRemove }) {
 }
 
 export default function FileUploader({ onUpload }) {
+  const { t } = useLanguage()
   const [dragOver, setDragOver] = useState(false)
   const [files, setFiles] = useState([])
   const inputRef = useRef(null)
@@ -106,10 +108,10 @@ export default function FileUploader({ onUpload }) {
         </div>
         <div className="text-center">
           <p className="text-sm font-medium" style={{ color: 'var(--txt-primary)' }}>
-            {dragOver ? 'Drop files here' : 'Drag & drop files'}
+            {dragOver ? t('fileUploader.drop') : t('fileUploader.drag')}
           </p>
           <p className="text-xs mt-1" style={{ color: 'var(--txt-secondary)' }}>
-            or <span style={{ color: 'var(--accent)' }}>browse</span> · PDF, DOCX, MD, TXT
+            {t('fileUploader.orBrowse').split(' ')[0]} <span style={{ color: 'var(--accent)' }}>{t('fileUploader.orBrowse').split(' ').slice(1).join(' ')}</span> · PDF, DOCX, MD, TXT
           </p>
         </div>
         <input ref={inputRef} type="file" multiple accept=".pdf,.docx,.doc,.md,.txt" className="hidden"
@@ -118,7 +120,7 @@ export default function FileUploader({ onUpload }) {
 
       <AnimatePresence>
         {files.map(file => (
-          <FileItem key={file.name} file={file} onRemove={removeFile} />
+          <FileItem key={file.name} file={file} onRemove={removeFile} t={t} />
         ))}
       </AnimatePresence>
     </div>

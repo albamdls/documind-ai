@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   User, Key, Bell, Cpu, Shield, Globe,
@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useLanguage } from '../context/LanguageContext'
 import { Badge, Button, Toggle, Avatar } from '../components/ui/index'
 
 function Section({ icon, title, description, children }) {
@@ -28,9 +29,45 @@ function Section({ icon, title, description, children }) {
 }
 
 const AI_PROVIDERS = [
-  { id: 'anthropic',   name: 'Anthropic',    model: 'Claude 3.5 Sonnet',  logo: '🟠', badge: 'Recommended',  badgeVariant: 'blue'    },
-  { id: 'openai',      name: 'OpenAI',       model: 'GPT-4o',             logo: '⚫', badge: null,           badgeVariant: null       },
-  { id: 'huggingface', name: 'Hugging Face', model: 'Mixtral 8x7B',       logo: '🟡', badge: 'Open source',  badgeVariant: 'green'   },
+  {
+    id: 'anthropic',
+    name: 'Anthropic',
+    defaultModel: 'claude-3-5-sonnet',
+    models: [
+      { id: 'claude-3-5-sonnet', label: 'Claude 3.5 Sonnet' },
+      { id: 'claude-3-7-sonnet', label: 'Claude 3.7 Sonnet' },
+      { id: 'claude-3-haiku', label: 'Claude 3 Haiku' },
+    ],
+    logo: '🟠',
+      badgeKey: 'recommended',
+      badgeVariant: 'blue',
+  },
+  {
+    id: 'openai',
+    name: 'OpenAI',
+    defaultModel: 'gpt-4o',
+    models: [
+      { id: 'gpt-4o', label: 'GPT-4o' },
+      { id: 'gpt-4.1', label: 'GPT-4.1' },
+      { id: 'gpt-4.1-mini', label: 'GPT-4.1 Mini' },
+    ],
+    logo: '⚫',
+      badgeKey: null,
+    badgeVariant: null,
+  },
+  {
+    id: 'huggingface',
+    name: 'Hugging Face',
+    defaultModel: 'mixtral-8x7b',
+    models: [
+      { id: 'mixtral-8x7b', label: 'Mixtral 8x7B' },
+      { id: 'llama-3.1-70b', label: 'Llama 3.1 70B' },
+      { id: 'mistral-nemo', label: 'Mistral Nemo' },
+    ],
+    logo: '🟡',
+      badgeKey: 'openSource',
+      badgeVariant: 'green',
+  },
 ]
 
 const INTEGRATIONS = [
@@ -42,12 +79,15 @@ const INTEGRATIONS = [
 
 export default function SettingsPage() {
   const { user, logout, updateProfile } = useAuth()
+  const { t } = useLanguage()
   const navigate = useNavigate()
   const [profile, setProfile] = useState({ name: user?.name || '', email: user?.email || '' })
   const [provider, setProvider] = useState(user?.aiProvider || 'anthropic')
+  const [model, setModel] = useState(user?.aiModel || 'claude-3-5-sonnet')
   const [showApiKey, setShowApiKey] = useState(false)
   const [copied, setCopied] = useState(false)
   const [saveState, setSaveState] = useState('idle') // idle | saving | saved
+  const [aiSaveState, setAiSaveState] = useState('idle')
   const [notifs, setNotifs] = useState({
     processingComplete: true,
     weeklyDigest: false,
@@ -70,17 +110,37 @@ export default function SettingsPage() {
   }
 
   const handleLogout = () => { logout(); navigate('/') }
+  const activeProvider = useMemo(
+    () => AI_PROVIDERS.find(item => item.id === provider) || AI_PROVIDERS[0],
+    [provider],
+  )
+
+  useEffect(() => {
+    const nextProvider = AI_PROVIDERS.find(item => item.id === provider)
+    if (!nextProvider) return
+
+    const validModel = nextProvider.models.some(item => item.id === model)
+    if (!validModel) setModel(nextProvider.defaultModel)
+  }, [provider, model])
+
+  const handleSaveAiSettings = async () => {
+    setAiSaveState('saving')
+    await new Promise(resolve => setTimeout(resolve, 500))
+    updateProfile({ aiProvider: provider, aiModel: model })
+    setAiSaveState('saved')
+    setTimeout(() => setAiSaveState('idle'), 2500)
+  }
 
   return (
     <div className="p-6 max-w-3xl mx-auto space-y-6">
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="font-display font-bold text-2xl mb-1 tracking-tight" style={{ color: 'var(--txt-primary)' }}>Settings</h1>
-        <p className="text-sm" style={{ color: 'var(--txt-secondary)' }}>Manage your account, integrations, and preferences.</p>
+        <h1 className="font-display font-bold text-2xl mb-1 tracking-tight" style={{ color: 'var(--txt-primary)' }}>{t('settings.title')}</h1>
+        <p className="text-sm" style={{ color: 'var(--txt-secondary)' }}>{t('settings.subtitle')}</p>
       </motion.div>
 
       {/* Profile */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-        <Section icon={<User size={15} />} title="Profile" description="Your personal information">
+        <Section icon={<User size={15} />} title={t('settings.sections.profile.title')} description={t('settings.sections.profile.description')}>
           <div className="space-y-5">
             {/* Avatar */}
             <div className="flex items-center gap-4">
@@ -98,19 +158,19 @@ export default function SettingsPage() {
               <div>
                 <p className="text-sm font-semibold" style={{ color: 'var(--txt-primary)' }}>{user?.name}</p>
                 <p className="text-xs" style={{ color: 'var(--txt-secondary)' }}>{user?.email}</p>
-                <div className="mt-1"><Badge variant="blue" size="sm">{user?.plan || 'Free'} Plan</Badge></div>
+                <div className="mt-1"><Badge variant="blue" size="sm">{t('settings.sections.profile.plan', { plan: user?.plan || 'Free' })}</Badge></div>
               </div>
             </div>
 
             {/* Fields */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--txt-muted)' }}>Display Name</label>
+                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--txt-muted)' }}>{t('settings.sections.profile.displayName')}</label>
                 <input value={profile.name} onChange={e => setProfile(p => ({ ...p, name: e.target.value }))}
-                  className="input-base" placeholder="Your name" />
+                  className="input-base" placeholder={t('settings.sections.profile.namePlaceholder')} />
               </div>
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--txt-muted)' }}>Email Address</label>
+                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--txt-muted)' }}>{t('settings.sections.profile.email')}</label>
                 <input value={profile.email} onChange={e => setProfile(p => ({ ...p, email: e.target.value }))}
                   className="input-base" type="email" placeholder="you@company.com" />
               </div>
@@ -118,7 +178,7 @@ export default function SettingsPage() {
 
             <div className="flex justify-end">
               <Button variant="primary" size="sm" onClick={handleSaveProfile} loading={saveState === 'saving'} disabled={saveState === 'saving'}>
-                {saveState === 'saved' ? <><Check size={13} /> Saved!</> : 'Save Changes'}
+                {saveState === 'saved' ? <><Check size={13} /> {t('settings.sections.profile.saved')}</> : t('settings.sections.profile.save')}
               </Button>
             </div>
           </div>
@@ -127,7 +187,7 @@ export default function SettingsPage() {
 
       {/* AI Provider */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-        <Section icon={<Cpu size={15} />} title="AI Provider" description="Choose the model powering your knowledge base">
+        <Section icon={<Cpu size={15} />} title={t('settings.sections.ai.title')} description={t('settings.sections.ai.description')}>
           <div className="space-y-3">
             {AI_PROVIDERS.map(p => (
               <button key={p.id} onClick={() => setProvider(p.id)}
@@ -143,9 +203,9 @@ export default function SettingsPage() {
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold" style={{ color: 'var(--txt-primary)' }}>{p.name}</span>
-                    {p.badge && <Badge variant={p.badgeVariant} size="sm">{p.badge}</Badge>}
+                    {p.badgeKey && <Badge variant={p.badgeVariant} size="sm">{t(`settings.providerBadges.${p.badgeKey}`)}</Badge>}
                   </div>
-                  <p className="text-xs mt-0.5" style={{ color: 'var(--txt-muted)' }}>{p.model}</p>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--txt-muted)' }}>{p.models[0].label}</p>
                 </div>
                 <div className="w-5 h-5 rounded-full flex items-center justify-center transition-all"
                   style={provider === p.id
@@ -156,21 +216,50 @@ export default function SettingsPage() {
                 </div>
               </button>
             ))}
+
+            <div className="pt-2">
+                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--txt-muted)' }}>
+                  {t('settings.sections.ai.model')}
+                </label>
+              <select
+                value={model}
+                onChange={event => setModel(event.target.value)}
+                className="input-base py-2.5 text-sm cursor-pointer"
+              >
+                {activeProvider.models.map(option => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex justify-end pt-1">
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleSaveAiSettings}
+                loading={aiSaveState === 'saving'}
+                disabled={aiSaveState === 'saving'}
+              >
+                {aiSaveState === 'saved' ? <><Check size={13} /> {t('settings.sections.ai.saved')}</> : t('settings.sections.ai.save')}
+              </Button>
+            </div>
           </div>
           <p className="text-xs mt-4" style={{ color: 'var(--txt-muted)' }}>
-            Your API key for the selected provider will be used for all AI operations in your workspaces.
+            {t('settings.sections.ai.footer')}
           </p>
         </Section>
       </motion.div>
 
       {/* API Keys */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-        <Section icon={<Key size={15} />} title="API Keys" description="Manage API access credentials">
+        <Section icon={<Key size={15} />} title={t('settings.sections.apiKeys.title')} description={t('settings.sections.apiKeys.description')}>
           <div className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--txt-muted)' }}>
-                {AI_PROVIDERS.find(p => p.id === provider)?.name || 'AI Provider'} API Key
-              </label>
+                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--txt-muted)' }}>
+                 {t('settings.sections.apiKeys.keyLabel', { provider: AI_PROVIDERS.find(p => p.id === provider)?.name || t('settings.sections.ai.title') })}
+                </label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <input type={showApiKey ? 'text' : 'password'}
@@ -189,11 +278,11 @@ export default function SettingsPage() {
                     >{copied ? <Check size={12} /> : <Copy size={12} />}</button>
                   </div>
                 </div>
-                <Button variant="secondary" size="sm"><RefreshCw size={12} /> Rotate</Button>
+                <Button variant="secondary" size="sm"><RefreshCw size={12} /> {t('settings.sections.apiKeys.rotate')}</Button>
               </div>
             </div>
 
-            {/* DocuMind API */}
+            {/* DocuMind API
             <div className="p-4 rounded-xl" style={{ background: 'var(--bg-hover)', border: '1px solid var(--border-faint)' }}>
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm font-medium" style={{ color: 'var(--txt-primary)' }}>DocuMind API Access</p>
@@ -205,27 +294,28 @@ export default function SettingsPage() {
                 <Button variant="secondary" size="sm"><Copy size={12} /> Copy</Button>
               </div>
             </div>
+            */}
           </div>
         </Section>
       </motion.div>
 
       {/* Notifications */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-        <Section icon={<Bell size={15} />} title="Notifications" description="Control when and how you get notified">
+        <Section icon={<Bell size={15} />} title={t('settings.sections.notifications.title')} description={t('settings.sections.notifications.description')}>
           <Toggle checked={notifs.processingComplete} onChange={v => setNotifs(n => ({ ...n, processingComplete: v }))}
-            label="Processing complete" description="Notify me when documents finish indexing" />
+            label={t('settings.sections.notifications.processingComplete.label')} description={t('settings.sections.notifications.processingComplete.description')} />
           <Toggle checked={notifs.weeklyDigest} onChange={v => setNotifs(n => ({ ...n, weeklyDigest: v }))}
-            label="Weekly knowledge digest" description="A summary of activity across your workspaces" />
+            label={t('settings.sections.notifications.weeklyDigest.label')} description={t('settings.sections.notifications.weeklyDigest.description')} />
           <Toggle checked={notifs.aiSuggestions} onChange={v => setNotifs(n => ({ ...n, aiSuggestions: v }))}
-            label="AI suggestions" description="Proactive insights and recommendations from your documents" />
+            label={t('settings.sections.notifications.aiSuggestions.label')} description={t('settings.sections.notifications.aiSuggestions.description')} />
           <Toggle checked={notifs.teamUpdates} onChange={v => setNotifs(n => ({ ...n, teamUpdates: v }))}
-            label="Team updates" description="When teammates add documents or notes" />
+            label={t('settings.sections.notifications.teamUpdates.label')} description={t('settings.sections.notifications.teamUpdates.description')} />
         </Section>
       </motion.div>
 
       {/* Integrations */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
-        <Section icon={<Globe size={15} />} title="Integrations" description="Connect DocuMind AI with your existing tools">
+        <Section icon={<Globe size={15} />} title={t('settings.sections.integrations.title')} description={t('settings.sections.integrations.description')}>
           <div className="space-y-3">
             {INTEGRATIONS.map(int => (
               <div key={int.name} className="flex items-center gap-3 p-3 rounded-xl"
@@ -236,12 +326,12 @@ export default function SettingsPage() {
                   <p className="text-xs" style={{
                     color: int.status === 'connected' ? 'var(--accent-green)' : int.status === 'coming_soon' ? 'var(--txt-muted)' : 'var(--txt-muted)'
                   }}>
-                    {int.status === 'connected' ? '✓ Connected' : int.status === 'coming_soon' ? 'Coming soon' : 'Not connected'}
+                    {int.status === 'connected' ? t('settings.sections.integrations.connected') : int.status === 'coming_soon' ? t('settings.sections.integrations.comingSoon') : t('settings.sections.integrations.disconnected')}
                   </p>
                 </div>
                 {int.status !== 'coming_soon' && (
                   <Button variant={int.status === 'connected' ? 'secondary' : 'primary'} size="sm">
-                    {int.status === 'connected' ? 'Disconnect' : 'Connect'}
+                    {int.status === 'connected' ? t('settings.sections.integrations.disconnect') : t('settings.sections.integrations.connect')}
                   </Button>
                 )}
               </div>
@@ -252,7 +342,7 @@ export default function SettingsPage() {
 
       {/* Account */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-        <Section icon={<Shield size={15} />} title="Account" description="Manage your account data and session">
+        <Section icon={<Shield size={15} />} title={t('settings.sections.account.title')} description={t('settings.sections.account.description')}>
           <div className="space-y-3">
             <button className="flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all text-left"
               style={{ background: 'var(--bg-hover)', border: '1px solid var(--border-faint)' }}
@@ -261,8 +351,8 @@ export default function SettingsPage() {
             >
               <Download size={14} style={{ color: 'var(--txt-secondary)' }} />
               <div>
-                <p className="text-sm font-medium" style={{ color: 'var(--txt-primary)' }}>Export all data</p>
-                <p className="text-xs" style={{ color: 'var(--txt-muted)' }}>Download all workspaces, documents, and notes as a ZIP</p>
+                  <p className="text-sm font-medium" style={{ color: 'var(--txt-primary)' }}>{t('settings.sections.account.exportTitle')}</p>
+                  <p className="text-xs" style={{ color: 'var(--txt-muted)' }}>{t('settings.sections.account.exportDescription')}</p>
               </div>
               <ChevronRight size={13} style={{ color: 'var(--txt-muted)' }} className="ml-auto" />
             </button>
@@ -275,8 +365,8 @@ export default function SettingsPage() {
             >
               <LogOut size={14} style={{ color: 'var(--accent-amber)' }} />
               <div>
-                <p className="text-sm font-medium" style={{ color: 'var(--accent-amber)' }}>Sign out</p>
-                <p className="text-xs" style={{ color: 'var(--txt-muted)' }}>Sign out from all devices</p>
+                  <p className="text-sm font-medium" style={{ color: 'var(--accent-amber)' }}>{t('settings.sections.account.signOutTitle')}</p>
+                  <p className="text-xs" style={{ color: 'var(--txt-muted)' }}>{t('settings.sections.account.signOutDescription')}</p>
               </div>
               <ChevronRight size={13} style={{ color: 'var(--txt-muted)' }} className="ml-auto" />
             </button>
@@ -288,9 +378,9 @@ export default function SettingsPage() {
             >
               <Trash2 size={14} style={{ color: 'var(--accent-red)' }} />
               <div>
-                <p className="text-sm font-medium" style={{ color: 'var(--accent-red)' }}>Delete account</p>
-                <p className="text-xs" style={{ color: 'var(--txt-muted)' }}>Permanently delete your account and all data — irreversible</p>
-              </div>
+                  <p className="text-sm font-medium" style={{ color: 'var(--accent-red)' }}>{t('settings.sections.account.deleteTitle')}</p>
+                  <p className="text-xs" style={{ color: 'var(--txt-muted)' }}>{t('settings.sections.account.deleteDescription')}</p>
+                </div>
               <ChevronRight size={13} style={{ color: 'var(--txt-muted)' }} className="ml-auto" />
             </button>
           </div>

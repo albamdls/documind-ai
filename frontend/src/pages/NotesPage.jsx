@@ -1,11 +1,13 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, Search, StickyNote, Sparkles, X, Trash2, FolderOpen, ChevronLeft, Save } from 'lucide-react'
-import { mockNotes, mockWorkspaces } from '../data/mockData'
+import { Plus, StickyNote, Sparkles, X, Trash2, FolderOpen, ChevronLeft, Save } from 'lucide-react'
+import { mockNotes } from '../data/mockData'
+import { useLanguage } from '../context/LanguageContext'
+import { useWorkspaces } from '../context/WorkspaceContext'
+import { localizeNote, localizeWorkspace } from '../i18n/localizedData'
 import { Badge, EmptyState, Button } from '../components/ui/index'
 
-function NoteEditor({ note, onClose, onSave }) {
+function NoteEditor({ note, onClose, onSave, t }) {
   const [title, setTitle] = useState(note?.title || '')
   const [content, setContent] = useState(note?.content || '')
   const hasChanges = title !== (note?.title || '') || content !== (note?.content || '')
@@ -24,18 +26,19 @@ function NoteEditor({ note, onClose, onSave }) {
         <input
           value={title}
           onChange={e => setTitle(e.target.value)}
-          placeholder="Untitled note"
+          placeholder={t('notesPage.editor.untitled')}
           className="flex-1 text-lg font-semibold bg-transparent outline-none"
           style={{ color: 'var(--txt-primary)', fontFamily: 'Syne, sans-serif' }}
         />
 
         <div className="flex items-center gap-2">
           {hasChanges && (
-            <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-              className="text-xs" style={{ color: 'var(--txt-muted)' }}>Unsaved changes</motion.span>
+            <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-xs" style={{ color: 'var(--txt-muted)' }}>
+              {t('notesPage.editor.unsaved')}
+            </motion.span>
           )}
           <Button variant="primary" size="sm" onClick={() => onSave({ title, content })} disabled={!title.trim()}>
-            <Save size={13} /> Save
+            <Save size={13} /> {t('notesPage.editor.save')}
           </Button>
         </div>
       </div>
@@ -46,7 +49,7 @@ function NoteEditor({ note, onClose, onSave }) {
           <textarea
             value={content}
             onChange={e => setContent(e.target.value)}
-            placeholder="Start writing your note…&#10;&#10;Use this space to capture insights, ideas, meeting notes, or summaries."
+            placeholder={t('notesPage.editor.placeholder')}
             className="w-full bg-transparent outline-none leading-relaxed resize-none"
             style={{
               color: 'var(--txt-primary)',
@@ -61,7 +64,7 @@ function NoteEditor({ note, onClose, onSave }) {
       {/* Word count */}
       <div className="px-6 py-2 text-right shrink-0" style={{ borderTop: '1px solid var(--border-faint)' }}>
         <span className="text-[11px]" style={{ color: 'var(--txt-muted)' }}>
-          {content.split(/\s+/).filter(Boolean).length} words
+          {t('notesPage.editor.words', { count: content.split(/\s+/).filter(Boolean).length })}
         </span>
       </div>
     </div>
@@ -115,11 +118,18 @@ function NoteCard({ note, onClick, onDelete, workspaceName }) {
 }
 
 export default function NotesPage() {
-  const [notes, setNotes] = useState(mockNotes)
+  const { t, language } = useLanguage()
+  const { workspaces } = useWorkspaces()
+  const localizedWorkspaces = workspaces.map(workspace => localizeWorkspace(workspace, language))
+  const [notes, setNotes] = useState(() => mockNotes.map(note => localizeNote(note, language)))
   const [search, setSearch] = useState('')
   const [wsFilter, setWsFilter] = useState('all')
   const [editing, setEditing] = useState(null)  // null = list, false = new, or note object
   const [creating, setCreating] = useState(false)
+
+  useEffect(() => {
+    setNotes(current => current.map(note => localizeNote(note, language)))
+  }, [language])
 
   const filtered = notes.filter(n => {
     const matchSearch = n.title.toLowerCase().includes(search.toLowerCase()) || n.content.toLowerCase().includes(search.toLowerCase())
@@ -127,7 +137,7 @@ export default function NotesPage() {
     return matchSearch && matchWs
   })
 
-  const wsForNote = wsId => mockWorkspaces.find(ws => ws.id === wsId)?.name
+  const wsForNote = wsId => localizedWorkspaces.find(ws => ws.id === wsId)?.name
 
   const handleDelete = id => setNotes(n => n.filter(note => note.id !== id))
 
@@ -136,7 +146,7 @@ export default function NotesPage() {
       setNotes(prev => [{
         id: `n${Date.now()}`,
         workspaceId: wsFilter !== 'all' ? wsFilter : 'ws1',
-        title: data.title || 'Untitled',
+        title: data.title || t('notesPage.editor.untitled'),
         content: data.content,
         preview: data.content.slice(0, 120) || data.title,
         createdAt: new Date().toISOString(),
@@ -160,6 +170,7 @@ export default function NotesPage() {
           note={editing || null}
           onClose={() => { setCreating(false); setEditing(null) }}
           onSave={handleSave}
+          t={t}
         />
       </div>
     )
@@ -170,13 +181,13 @@ export default function NotesPage() {
       {/* Header */}
       <div className="flex items-start justify-between mb-7">
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-          <h1 className="font-display font-bold text-2xl mb-1 tracking-tight" style={{ color: 'var(--txt-primary)' }}>Notes</h1>
+          <h1 className="font-display font-bold text-2xl mb-1 tracking-tight" style={{ color: 'var(--txt-primary)' }}>{t('notesPage.title')}</h1>
           <p className="text-sm" style={{ color: 'var(--txt-secondary)' }}>
-            {notes.length} notes across {mockWorkspaces.length} workspaces
+            {t('notesPage.subtitle', { count: notes.length, workspaces: localizedWorkspaces.length })}
           </p>
         </motion.div>
         <Button variant="primary" onClick={() => setCreating(true)}>
-          <Plus size={14} /> New Note
+          <Plus size={14} /> {t('notesPage.newNote')}
         </Button>
       </div>
 
@@ -184,14 +195,14 @@ export default function NotesPage() {
       <div className="flex items-center gap-3 mb-6 flex-wrap">
         <div className="relative flex-1 min-w-48">
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--txt-muted)" strokeWidth="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search notes…" className="input-base pl-9 py-2 text-sm" />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('notesPage.searchPlaceholder')} className="input-base pl-9 py-2 text-sm" />
           {search && (
             <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--txt-muted)' }}><X size={13} /></button>
           )}
         </div>
 
         <div className="flex items-center gap-1.5 overflow-x-auto">
-          {[{ id: 'all', label: 'All', emoji: '' }, ...mockWorkspaces.slice(0, 4).map(ws => ({ id: ws.id, label: ws.name, emoji: ws.emoji }))].map(ws => (
+          {[{ id: 'all', label: t('notesPage.all'), emoji: '' }, ...localizedWorkspaces.slice(0, 4).map(ws => ({ id: ws.id, label: ws.name, emoji: ws.emoji }))].map(ws => (
             <button key={ws.id} onClick={() => setWsFilter(ws.id)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap"
               style={wsFilter === ws.id
@@ -211,9 +222,9 @@ export default function NotesPage() {
       <AnimatePresence mode="wait">
         {filtered.length === 0
           ? <EmptyState icon={<StickyNote size={28} />}
-              title={search ? 'No notes found' : 'No notes yet'}
-              description={search ? `No results for "${search}"` : 'Create your first note to capture knowledge and insights.'}
-              action={<Button variant="primary" onClick={() => setCreating(true)}><Plus size={13} /> Create Note</Button>} />
+              title={search ? t('notesPage.noResultsTitle') : t('notesPage.emptyTitle')}
+              description={search ? t('notesPage.noResultsDescription', { search }) : t('notesPage.emptyDescription')}
+              action={<Button variant="primary" onClick={() => setCreating(true)}><Plus size={13} /> {t('notesPage.createNote')}</Button>} />
           : <motion.div key="grid" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
               className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {filtered.map((note, i) => (
