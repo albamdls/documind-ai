@@ -2,7 +2,7 @@
 # Su trabajo es centralizar los campos que se repiten en todas las tablas para no duplicarlos
 
 import uuid
-from datatime import datetime, timezone
+from datetime import datetime, timezone
 
 from sqlalchemy import DateTime
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -26,8 +26,8 @@ class TimestampedBase(Base):
         primary_key=True,
         default=uuid.uuid4,
     )
-    created_at: Mapped[datatime] = mapped_column(
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
-        nullable=False,
+        nullable=False, 
     )
